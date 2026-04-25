@@ -1,7 +1,8 @@
 import os
 import streamlit as st
 
-from langchain_groq import ChatGroq
+from groq import Groq
+
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
@@ -20,21 +21,11 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 
 
 # -------------------------
-# API KEYS (STREAMLIT SECRETS)
+# API KEYS
 # -------------------------
 
-groq_api_key = st.secrets["GROQ_API_KEY"]
 os.environ["HF_TOKEN"] = st.secrets["HF_TOKEN"]
-
-
-# -------------------------
-# LLM SETUP
-# -------------------------
-
-llm = ChatGroq(
-    groq_api_key=groq_api_key,
-    model_name="llama3-8b-8192"   # safer model
-)
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 
 # -------------------------
@@ -47,7 +38,7 @@ embeddings = HuggingFaceEmbeddings(
 
 
 # -------------------------
-# LOAD DOCUMENTS (SAFE PATH)
+# LOAD DOCUMENTS
 # -------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -76,7 +67,7 @@ splits = text_splitter.split_documents(docs)
 vectorstore = Chroma.from_documents(
     documents=splits,
     embedding=embeddings,
-    persist_directory="chroma_db"   # optional but good
+    persist_directory="chroma_db"
 )
 
 retriever = vectorstore.as_retriever()
@@ -87,10 +78,7 @@ retriever = vectorstore.as_retriever()
 # -------------------------
 
 contextualize_q_system_prompt = (
-    "Given a chat history and the latest user question "
-    "which might reference context in the chat history, "
-    "formulate a standalone question which can be understood "
-    "without the chat history. Do NOT answer the question."
+    "Rephrase the user question based on chat history. Do not answer."
 )
 
 contextualize_q_prompt = ChatPromptTemplate.from_messages(
@@ -102,54 +90,20 @@ contextualize_q_prompt = ChatPromptTemplate.from_messages(
 )
 
 history_aware_retriever = create_history_aware_retriever(
-    llm,
+    None,  # not using LLM here
     retriever,
     contextualize_q_prompt
 )
 
 
 # -------------------------
-# SYSTEM PROMPT
+# SIMPLE QA (NO LLM INSIDE LANGCHAIN)
 # -------------------------
 
-system_prompt = (
-    "You are an AI assistant for Invertis University, Bareilly, Uttar Pradesh, India. "
-    "Answer only using the provided context.\n"
-
-    "If answer not found, say: "
-    "'I'm not sure. Please visit official website.'\n"
-
-    "Keep answer short (max 4 sentences).\n\n"
-    "{context}"
-)
-
-
-# -------------------------
-# QA PROMPT
-# -------------------------
-
-qa_prompt = ChatPromptTemplate.from_messages(
-    [
-        ("system", system_prompt),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}")
-    ]
-)
-
-
-# -------------------------
-# QA CHAIN
-# -------------------------
-
-question_answer_chain = create_stuff_documents_chain(
-    llm,
-    qa_prompt
-)
-
-rag_chain = create_retrieval_chain(
-    history_aware_retriever,
-    question_answer_chain
-)
+def get_context(question, session_id="user1"):
+    response = retriever.invoke(question)
+    context = "\n".join([doc.page_content for doc in response])
+    return context
 
 
 # -------------------------
@@ -164,24 +118,34 @@ def get_session_history(session_id: str) -> BaseChatMessageHistory:
     return store[session_id]
 
 
-conversational_rag_chain = RunnableWithMessageHistory(
-    rag_chain,
-    get_session_history,
-    input_messages_key="input",
-    history_messages_key="chat_history",
-    output_messages_key="answer",
-)
-
-
 # -------------------------
-# FUNCTION FOR STREAMLIT
+# MAIN FUNCTION
 # -------------------------
 
 def ask_question(question, session_id="user1"):
 
-    response = conversational_rag_chain.invoke(
-        {"input": question},
-        config={"configurable": {"session_id": session_id}}
+    # Step 1: Get context
+    context = get_context(question)
+
+    # Step 2: Send to Groq LLM
+    completion = client.chat.completions.create(
+        model="llama3-8b-8192",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are an AI assistant for Invertis University. "
+                    "Answer ONLY using the provided context. "
+                    "If answer is not present, say you don't know. "
+                    "Keep answer short (max 4 sentences).\n\n"
+                    f"Context:\n{context}"
+                )
+            },
+            {
+                "role": "user",
+                "content": question
+            }
+        ]
     )
 
-    return response["answer"]
+    return completion.choices[0].message.content
