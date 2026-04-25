@@ -1,6 +1,5 @@
 import os
-from dotenv import load_dotenv
-load_dotenv()
+import streamlit as st
 
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -21,14 +20,20 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 
 
 # -------------------------
+# API KEYS (STREAMLIT SECRETS)
+# -------------------------
+
+groq_api_key = st.secrets["GROQ_API_KEY"]
+os.environ["HF_TOKEN"] = st.secrets["HF_TOKEN"]
+
+
+# -------------------------
 # LLM SETUP
 # -------------------------
 
-groq_api_key = os.getenv("GROQ_API_KEY")
-
 llm = ChatGroq(
     groq_api_key=groq_api_key,
-    model_name="llama-3.3-70b-versatile"
+    model_name="llama3-8b-8192"   # safer model
 )
 
 
@@ -36,18 +41,19 @@ llm = ChatGroq(
 # EMBEDDINGS
 # -------------------------
 
-os.environ["HF_TOKEN"] = os.getenv("HF_TOKEN")
-
 embeddings = HuggingFaceEmbeddings(
     model="all-MiniLM-L6-v2"
 )
 
 
 # -------------------------
-# LOAD DOCUMENTS
+# LOAD DOCUMENTS (SAFE PATH)
 # -------------------------
 
-loader = TextLoader("Invertis_FAQ_Database.txt")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+file_path = os.path.join(BASE_DIR, "Invertis_FAQ_Database.txt")
+
+loader = TextLoader(file_path)
 docs = loader.load()
 
 
@@ -69,7 +75,8 @@ splits = text_splitter.split_documents(docs)
 
 vectorstore = Chroma.from_documents(
     documents=splits,
-    embedding=embeddings
+    embedding=embeddings,
+    persist_directory="chroma_db"   # optional but good
 )
 
 retriever = vectorstore.as_retriever()
@@ -83,8 +90,7 @@ contextualize_q_system_prompt = (
     "Given a chat history and the latest user question "
     "which might reference context in the chat history, "
     "formulate a standalone question which can be understood "
-    "without the chat history. Do NOT answer the question, "
-    "just reformulate it if needed and otherwise return it as is."
+    "without the chat history. Do NOT answer the question."
 )
 
 contextualize_q_prompt = ChatPromptTemplate.from_messages(
@@ -108,16 +114,12 @@ history_aware_retriever = create_history_aware_retriever(
 
 system_prompt = (
     "You are an AI assistant for Invertis University, Bareilly, Uttar Pradesh, India. "
-    "Your job is to help students, parents, and visitors by answering questions about "
-    "the university such as courses, admissions, campus facilities, departments, "
-    "placements, hostels, infrastructure, and other university-related information.\n"
+    "Answer only using the provided context.\n"
 
-    "Use ONLY the following retrieved context to answer the user's question.\n"
+    "If answer not found, say: "
+    "'I'm not sure. Please visit official website.'\n"
 
-    "If the answer is not present in the context, say: "
-    "'I'm not sure about that. Please visit the official Invertis University website.'\n"
-
-    "Keep your answers clear and concise (maximum 4 sentences).\n\n"
+    "Keep answer short (max 4 sentences).\n\n"
     "{context}"
 )
 
@@ -157,10 +159,8 @@ rag_chain = create_retrieval_chain(
 store = {}
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
-
     if session_id not in store:
         store[session_id] = ChatMessageHistory()
-
     return store[session_id]
 
 
