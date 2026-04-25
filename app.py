@@ -1,14 +1,18 @@
 import streamlit as st
 from rag_pipeline import ask_question
 
-# Page Config
+# -------------------------
+# PAGE CONFIG
+# -------------------------
 st.set_page_config(
     page_title="Invertis AI Chatbot",
     page_icon="🎓",
     layout="centered"
 )
 
-# Custom CSS
+# -------------------------
+# CUSTOM CSS
+# -------------------------
 st.markdown("""
 <style>
 .main {
@@ -41,11 +45,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Title
+# -------------------------
+# TITLE
+# -------------------------
 st.markdown('<div class="chat-title">🎓 Invertis University AI Assistant</div>', unsafe_allow_html=True)
 st.markdown('<div class="chat-subtitle">Ask about courses, fees, admissions & more</div>', unsafe_allow_html=True)
 
-# Sidebar
+# -------------------------
+# SIDEBAR
+# -------------------------
 with st.sidebar:
     st.header("📌 About")
     st.write("AI chatbot for Invertis University queries.")
@@ -60,14 +68,18 @@ with st.sidebar:
     if st.button("🔄 Clear Chat"):
         st.session_state.messages = []
 
-# Session State
+# -------------------------
+# SESSION STATE
+# -------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "session_id" not in st.session_state:
     st.session_state.session_id = "invertis_user"
 
-# Display chat
+# -------------------------
+# DISPLAY CHAT
+# -------------------------
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if msg["role"] == "user":
@@ -75,24 +87,33 @@ for msg in st.session_state.messages:
         else:
             st.markdown(f'<div class="bot-msg">{msg["content"]}</div>', unsafe_allow_html=True)
 
-# Input
+# -------------------------
+# INPUT
+# -------------------------
 user_input = st.chat_input("💬 Ask something about Invertis University...")
 
-# Chat logic
+# -------------------------
+# CHAT LOGIC
+# -------------------------
 if user_input:
-    # Show user message
+    # Save & show user message
     st.session_state.messages.append({"role": "user", "content": user_input})
+
     with st.chat_message("user"):
         st.markdown(f'<div class="user-msg">{user_input}</div>', unsafe_allow_html=True)
 
-    # Generate response
+    # Generate response safely
     with st.chat_message("assistant"):
         with st.spinner("🤖 Thinking..."):
-            answer = ask_question(
-                user_input,
-                session_id=st.session_state.session_id
-            )
-            st.markdown(f'<div class="bot-msg">{answer}</div>', unsafe_allow_html=True)
+            try:
+                answer = ask_question(
+                    user_input,
+                    session_id=st.session_state.session_id
+                )
+            except Exception as e:
+                answer = "⚠️ Something went wrong. Please try again later."
+
+        st.markdown(f'<div class="bot-msg">{answer}</div>', unsafe_allow_html=True)
 
     # Save response
     st.session_state.messages.append({"role": "assistant", "content": answer})
