@@ -1,5 +1,5 @@
-ipykernel
-dotenv
+streamlit
+python-dotenv
 langchain_groq
 langchain_huggingface
 sentence-transformers
@@ -8,3 +8,4 @@ langchain_text_splitters
 langchain_core
 langchain
 langchain-community
+chromadb
