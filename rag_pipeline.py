@@ -32,7 +32,7 @@ os.environ["HF_TOKEN"] = st.secrets["HF_TOKEN"]
 # -------------------------
 llm = ChatGroq(
     groq_api_key=groq_api_key,
-    model_name="llama3-8b-8192"
+    model_name="llama-3.1-8b-instant"
 )
 
 
