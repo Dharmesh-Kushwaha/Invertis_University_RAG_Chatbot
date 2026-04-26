@@ -8,7 +8,7 @@ from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-# ✅ FIXED IMPORTS
+
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
@@ -91,7 +91,7 @@ retriever = vectorstore.as_retriever()
 
 
 # -------------------------
-# 1️⃣ CONTEXTUALIZE QUESTION (FIRST SYSTEM PROMPT)
+# CONTEXTUALIZE QUESTION (FIRST SYSTEM PROMPT)
 # -------------------------
 contextualize_q_system_prompt = (
     "Given a chat history and the latest user question "
@@ -116,7 +116,7 @@ history_aware_retriever = create_history_aware_retriever(
 
 
 # -------------------------
-# 2️⃣ MAIN SYSTEM PROMPT (UNCHANGED ✅)
+#  MAIN SYSTEM PROMPT 
 # -------------------------
 system_prompt = (
     "You are an AI assistant for Invertis University, Bareilly, Uttar Pradesh, India. "
