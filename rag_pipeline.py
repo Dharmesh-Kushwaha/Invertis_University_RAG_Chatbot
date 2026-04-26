@@ -2,21 +2,20 @@ import os
 import streamlit as st
 
 from langchain_groq import ChatGroq
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
+
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+from langchain_community.document_loaders import TextLoader
+from langchain_community.chat_message_histories import ChatMessageHistory
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.chat_history import BaseChatMessageHistory
+from langchain_core.runnables.history import RunnableWithMessageHistory
 
 from langchain_classic.chains import create_retrieval_chain
 from langchain_classic.chains.combine_documents import create_stuff_documents_chain
 from langchain_classic.chains import create_history_aware_retriever
-
-from langchain_community.document_loaders import TextLoader
-from langchain_community.chat_message_histories import ChatMessageHistory
-
-from langchain_core.chat_history import BaseChatMessageHistory
-from langchain_core.runnables.history import RunnableWithMessageHistory
 
 
 # -------------------------
@@ -24,7 +23,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 # -------------------------
 
 groq_api_key = st.secrets["GROQ_API_KEY"]
-os.environ["HF_TOKEN"] = st.secrets["HF_TOKEN"]
+hf_token = st.secrets["HF_TOKEN"]
 
 
 # -------------------------
@@ -33,21 +32,22 @@ os.environ["HF_TOKEN"] = st.secrets["HF_TOKEN"]
 
 llm = ChatGroq(
     groq_api_key=groq_api_key,
-    model_name="llama3-8b-8192"   # safer model
+    model_name="llama3-8b-8192"
 )
 
 
 # -------------------------
-# EMBEDDINGS
+# EMBEDDINGS (LIGHTWEIGHT API)
 # -------------------------
 
-embeddings = HuggingFaceEmbeddings(
-    model="all-MiniLM-L6-v2"
+embeddings = HuggingFaceInferenceAPIEmbeddings(
+    api_key=hf_token,
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
 
 # -------------------------
-# LOAD DOCUMENTS (SAFE PATH)
+# LOAD DOCUMENTS
 # -------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -76,7 +76,7 @@ splits = text_splitter.split_documents(docs)
 vectorstore = Chroma.from_documents(
     documents=splits,
     embedding=embeddings,
-    persist_directory="chroma_db"   # optional but good
+    persist_directory="chroma_db"
 )
 
 retriever = vectorstore.as_retriever()
@@ -90,7 +90,8 @@ contextualize_q_system_prompt = (
     "Given a chat history and the latest user question "
     "which might reference context in the chat history, "
     "formulate a standalone question which can be understood "
-    "without the chat history. Do NOT answer the question."
+    "without the chat history. Do NOT answer the question, "
+    "just reformulate it if needed and otherwise return it as is."
 )
 
 contextualize_q_prompt = ChatPromptTemplate.from_messages(
@@ -109,17 +110,21 @@ history_aware_retriever = create_history_aware_retriever(
 
 
 # -------------------------
-# SYSTEM PROMPT
+# SYSTEM PROMPT (YOUR ORIGINAL)
 # -------------------------
 
 system_prompt = (
     "You are an AI assistant for Invertis University, Bareilly, Uttar Pradesh, India. "
-    "Answer only using the provided context.\n"
+    "Your job is to help students, parents, and visitors by answering questions about "
+    "the university such as courses, admissions, campus facilities, departments, "
+    "placements, hostels, infrastructure, and other university-related information.\n"
 
-    "If answer not found, say: "
-    "'I'm not sure. Please visit official website.'\n"
+    "Use ONLY the following retrieved context to answer the user's question.\n"
 
-    "Keep answer short (max 4 sentences).\n\n"
+    "If the answer is not present in the context, say: "
+    "'I'm not sure about that. Please visit the official Invertis University website.'\n"
+
+    "Keep your answers clear and concise (maximum 4 sentences).\n\n"
     "{context}"
 )
 
