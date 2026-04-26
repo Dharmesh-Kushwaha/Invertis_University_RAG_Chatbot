@@ -37,7 +37,7 @@ llm = ChatGroq(
 
 
 # -------------------------
-# EMBEDDINGS (LIGHTWEIGHT API)
+# EMBEDDINGS (API BASED)
 # -------------------------
 
 embeddings = HuggingFaceInferenceAPIEmbeddings(
@@ -68,16 +68,25 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 splits = text_splitter.split_documents(docs)
 
+# 🔥 REMOVE EMPTY CHUNKS (IMPORTANT FIX)
+splits = [doc for doc in splits if doc.page_content.strip() != ""]
+
+print("Total valid chunks:", len(splits))
+
 
 # -------------------------
-# VECTOR DATABASE
+# VECTOR DATABASE (SAFE)
 # -------------------------
 
-vectorstore = Chroma.from_documents(
-    documents=splits,
-    embedding=embeddings,
-    persist_directory="chroma_db"
-)
+try:
+    vectorstore = Chroma.from_documents(
+        documents=splits,
+        embedding=embeddings,
+        persist_directory="chroma_db"
+    )
+except Exception as e:
+    print("Error in vectorstore:", e)
+    raise e
 
 retriever = vectorstore.as_retriever()
 
