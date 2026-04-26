@@ -78,7 +78,7 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = "invertis_user"
 
 # -------------------------
-# DISPLAY CHAT
+# DISPLAY CHAT HISTORY
 # -------------------------
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -96,13 +96,14 @@ user_input = st.chat_input("💬 Ask something about Invertis University...")
 # CHAT LOGIC
 # -------------------------
 if user_input:
-    # Save & show user message
+    # Save user message
     st.session_state.messages.append({"role": "user", "content": user_input})
 
+    # Display user message
     with st.chat_message("user"):
         st.markdown(f'<div class="user-msg">{user_input}</div>', unsafe_allow_html=True)
 
-    # Generate response safely
+    # Generate response
     with st.chat_message("assistant"):
         with st.spinner("🤖 Thinking..."):
             try:
@@ -110,10 +111,17 @@ if user_input:
                     user_input,
                     session_id=st.session_state.session_id
                 )
+
+                # fallback if empty
+                if not answer or answer.strip() == "":
+                    answer = "I'm not sure. Please visit official website."
+
             except Exception as e:
+                # 🔥 SHOW REAL ERROR (IMPORTANT FOR DEBUG)
+                st.error(f"Error: {str(e)}")
                 answer = "⚠️ Something went wrong. Please try again later."
 
         st.markdown(f'<div class="bot-msg">{answer}</div>', unsafe_allow_html=True)
 
-    # Save response
+    # Save assistant response
     st.session_state.messages.append({"role": "assistant", "content": answer})
