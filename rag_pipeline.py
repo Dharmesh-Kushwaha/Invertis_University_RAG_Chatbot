@@ -1,5 +1,6 @@
 import os
 import streamlit as st
+import time
 
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
@@ -68,25 +69,42 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 splits = text_splitter.split_documents(docs)
 
-# 🔥 REMOVE EMPTY CHUNKS (IMPORTANT FIX)
+# 🔥 REMOVE EMPTY CHUNKS
 splits = [doc for doc in splits if doc.page_content.strip() != ""]
 
 print("Total valid chunks:", len(splits))
 
 
 # -------------------------
-# VECTOR DATABASE (SAFE)
+# SAFE EMBEDDING FUNCTION
 # -------------------------
 
-try:
-    vectorstore = Chroma.from_documents(
-        documents=splits,
-        embedding=embeddings,
-        persist_directory="chroma_db"
-    )
-except Exception as e:
-    print("Error in vectorstore:", e)
-    raise e
+def safe_embed(texts):
+    for attempt in range(3):
+        try:
+            return embeddings.embed_documents(texts)
+        except Exception as e:
+            print(f"Embedding retry {attempt+1} failed:", e)
+            time.sleep(2)
+    raise Exception("Embedding failed after retries")
+
+
+# -------------------------
+# VECTOR DATABASE (FINAL FIX)
+# -------------------------
+
+texts = [doc.page_content for doc in splits]
+metadatas = [doc.metadata for doc in splits]
+
+# 🔥 generate embeddings safely (prevents KeyError)
+_ = safe_embed(texts)
+
+vectorstore = Chroma.from_texts(
+    texts=texts,
+    embedding=embeddings,
+    metadatas=metadatas,
+    persist_directory="chroma_db"
+)
 
 retriever = vectorstore.as_retriever()
 
@@ -119,7 +137,7 @@ history_aware_retriever = create_history_aware_retriever(
 
 
 # -------------------------
-# SYSTEM PROMPT (YOUR ORIGINAL)
+# SYSTEM PROMPT (UNCHANGED)
 # -------------------------
 
 system_prompt = (
