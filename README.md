@@ -79,3 +79,35 @@ invertis-chatbot/
 ├── Invertis_FAQ_Database.txt # Knowledge base
 ├── requirements.txt # Dependencies
 └── README.md
+
+---
+
+## Limitations
+- The chatbot depends entirely on the dataset. Missing or outdated data will affect answers
+- No real-time data fetching
+- Supports only text-based interaction
+- Currently limited to English
+- Hosted version may have performance limits due to free-tier restrictions
+
+---
+
+## Future Improvements
+- Add source references for answers
+- Improve retrieval accuracy with better chunking strategies
+- Expand the dataset with more detailed university data
+- Add multilingual support (e.g., Hindi)
+- Deploy on a scalable cloud platform
+- Add user feedback system for response improvement
+
+---
+
+## Acknowledgments
+- Groq for fast LLM inference
+- LangChain for simplifying RAG implementation
+- Streamlit for quick UI development
+
+---
+
+## License
+
+This project is open-source and available under the MIT License.
