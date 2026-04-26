@@ -8,6 +8,7 @@ from langchain_chroma import Chroma
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+# ✅ FIXED IMPORTS
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain.chains.history_aware_retriever import create_history_aware_retriever
@@ -22,7 +23,6 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 # -------------------------
 # API KEYS
 # -------------------------
-
 groq_api_key = st.secrets["GROQ_API_KEY"]
 os.environ["HF_TOKEN"] = st.secrets["HF_TOKEN"]
 
@@ -30,7 +30,6 @@ os.environ["HF_TOKEN"] = st.secrets["HF_TOKEN"]
 # -------------------------
 # LLM
 # -------------------------
-
 llm = ChatGroq(
     groq_api_key=groq_api_key,
     model_name="llama3-8b-8192"
@@ -38,9 +37,8 @@ llm = ChatGroq(
 
 
 # -------------------------
-# EMBEDDINGS (FIXED)
+# EMBEDDINGS
 # -------------------------
-
 embeddings = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
@@ -49,7 +47,6 @@ embeddings = HuggingFaceEmbeddings(
 # -------------------------
 # LOAD FILE
 # -------------------------
-
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 file_path = os.path.join(BASE_DIR, "Invertis_FAQ_Database.txt")
 
@@ -60,7 +57,6 @@ docs = loader.load()
 # -------------------------
 # SPLIT TEXT
 # -------------------------
-
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
     chunk_overlap=200
@@ -68,13 +64,10 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 splits = text_splitter.split_documents(docs)
 
-print("Total chunks:", len(splits))
-
 
 # -------------------------
-# CLEAN TEXT (VERY IMPORTANT)
+# CLEAN TEXT
 # -------------------------
-
 texts = []
 metadatas = []
 
@@ -84,13 +77,9 @@ for doc in splits:
         metadatas.append(doc.metadata)
 
 
-print("Valid chunks:", len(texts))
-
-
 # -------------------------
-# VECTOR STORE (SAFE)
+# VECTOR STORE
 # -------------------------
-
 vectorstore = Chroma.from_texts(
     texts=texts,
     embedding=embeddings,
@@ -102,9 +91,8 @@ retriever = vectorstore.as_retriever()
 
 
 # -------------------------
-# HISTORY AWARE RETRIEVER
+# 1️⃣ CONTEXTUALIZE QUESTION (FIRST SYSTEM PROMPT)
 # -------------------------
-
 contextualize_q_system_prompt = (
     "Given a chat history and the latest user question "
     "which might reference context in the chat history, "
@@ -128,9 +116,8 @@ history_aware_retriever = create_history_aware_retriever(
 
 
 # -------------------------
-# YOUR ORIGINAL SYSTEM PROMPT (UNCHANGED)
+# 2️⃣ MAIN SYSTEM PROMPT (UNCHANGED ✅)
 # -------------------------
-
 system_prompt = (
     "You are an AI assistant for Invertis University, Bareilly, Uttar Pradesh, India. "
     "Answer only using the provided context.\n"
@@ -142,10 +129,6 @@ system_prompt = (
     "{context}"
 )
 
-
-# -------------------------
-# QA PROMPT
-# -------------------------
 
 qa_prompt = ChatPromptTemplate.from_messages(
     [
@@ -159,7 +142,6 @@ qa_prompt = ChatPromptTemplate.from_messages(
 # -------------------------
 # CHAINS
 # -------------------------
-
 question_answer_chain = create_stuff_documents_chain(
     llm,
     qa_prompt
@@ -174,7 +156,6 @@ rag_chain = create_retrieval_chain(
 # -------------------------
 # MEMORY
 # -------------------------
-
 store = {}
 
 def get_session_history(session_id: str) -> BaseChatMessageHistory:
@@ -195,7 +176,6 @@ conversational_rag_chain = RunnableWithMessageHistory(
 # -------------------------
 # FUNCTION
 # -------------------------
-
 def ask_question(question, session_id="user1"):
     response = conversational_rag_chain.invoke(
         {"input": question},
