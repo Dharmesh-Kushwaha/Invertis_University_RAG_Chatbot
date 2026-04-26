@@ -1,5 +1,6 @@
 streamlit
 python-dotenv
+
 langchain
 langchain-core
 langchain-community
@@ -7,6 +8,8 @@ langchain-text-splitters
 langchain-chroma
 langchain-huggingface
 langchain-groq
+
 sentence-transformers
-chromadb
+
+chromadb==0.4.24
 protobuf==3.20.3
